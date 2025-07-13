@@ -1,0 +1,45 @@
+global:
+  namespace: "backup-ops"
+  
+storage:
+  providers:
+    primary:
+      type: "huawei-obs"
+      bucket: "k8s-dr-primary"
+      region: "cn-north-4"
+      credentialsSecret: "huawei-obs-credentials"
+    secondary:
+      type: "aws-s3"
+      bucket: "k8s-dr-secondary"
+      region: "us-west-2"
+      credentialsSecret: "aws-s3-credentials"
+    tertiary:
+      type: "gcp-gcs"
+      bucket: "k8s-dr-tertiary"
+      region: "us-central1"
+      credentialsSecret: "gcp-gcs-credentials"
+
+databaseBackups:
+  enabled: true
+  replication:
+    enabled: true
+    providers: ["primary", "secondary"]
+  
+  postgresql:
+    instances:
+      - name: "production-db"
+        host: "postgres-service"
+        port: 5432
+        secretName: "postgres-credentials"
+        databases: ["app_db"]
+        schedule: "0 2 * * *"
+
+monitoring:
+  enabled: true
+  multiCloudDashboard: true
+  
+notifications:
+  enabled: true
+  channels:
+    - type: "slack"
+      webhook: "https://hooks.slack.com/services/YOUR/SLACK/WEBHOOK"

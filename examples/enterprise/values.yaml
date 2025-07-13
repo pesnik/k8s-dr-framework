@@ -1,0 +1,54 @@
+global:
+  namespace: "backup-ops"
+  image:
+    repository: "ghcr.io/pesnik/k8s-dr-framework"
+    tag: "latest"
+  
+enterprise:
+  enabled: true
+  multiTenancy: true
+  compliance:
+    enabled: true
+    standards: ["SOC2", "ISO27001", "PCI-DSS"]
+  
+security:
+  rbac:
+    enabled: true
+    tenantIsolation: true
+  encryption:
+    enabled: true
+    provider: "vault"
+  networkPolicies:
+    enabled: true
+    
+databaseBackups:
+  enabled: true
+  postgresql:
+    instances:
+      - name: "tenant-a-db"
+        host: "tenant-a-postgres"
+        port: 5432
+        secretName: "tenant-a-db-creds"
+        databases: ["app_db"]
+        tenant: "tenant-a"
+        schedule: "0 2 * * *"
+      - name: "tenant-b-db"
+        host: "tenant-b-postgres"
+        port: 5432
+        secretName: "tenant-b-db-creds"
+        databases: ["app_db"]
+        tenant: "tenant-b"
+        schedule: "0 3 * * *"
+        
+monitoring:
+  enabled: true
+  enterprise:
+    enabled: true
+    costAnalysis: true
+    complianceReporting: true
+  
+notifications:
+  enabled: true
+  enterprise:
+    enabled: true
+    escalation: true
