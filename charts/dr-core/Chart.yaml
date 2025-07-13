@@ -1,0 +1,18 @@
+apiVersion: v2
+name: dr-core
+description: A Helm chart for Kubernetes disaster recovery framework
+type: application
+version: 1.0.0
+appVersion: "1.0.0"
+home: https://github.com/pesnik/k8s-dr-framework
+sources:
+  - https://github.com/pesnik/k8s-dr-framework
+maintainers:
+  - name: pesnik
+    email: pesnik@example.com
+keywords:
+  - disaster-recovery
+  - backup
+  - kubernetes
+  - database
+  - monitoring

@@ -1,0 +1,27 @@
+{{- if .Values.prometheus.rules.enabled }}
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: backup-alerts
+  namespace: {{ .Values.global.namespace }}
+spec:
+  groups:
+  - name: backup.rules
+    rules:
+    - alert: BackupJobFailed
+      expr: backup_job_success == 0
+      for: 5m
+      labels:
+        severity: critical
+      annotations:
+        summary: "Backup job failed"
+        description: "Backup job {{ $labels.job }} has failed"
+    - alert: BackupJobMissing
+      expr: absent(backup_job_success)
+      for: 1h
+      labels:
+        severity: warning
+      annotations:
+        summary: "Backup job missing"
+        description: "No backup job metrics found"
+{{- end }}

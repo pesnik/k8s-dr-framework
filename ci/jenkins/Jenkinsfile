@@ -1,0 +1,51 @@
+pipeline {
+    agent any
+    
+    stages {
+        stage('Checkout') {
+            steps {
+                checkout scm
+            }
+        }
+        
+        stage('Lint') {
+            steps {
+                sh 'helm lint charts/dr-core'
+                sh 'helm lint charts/backup-monitoring'
+            }
+        }
+        
+        stage('Test') {
+            steps {
+                sh 'chmod +x tests/unit/run-tests.sh'
+                sh './tests/unit/run-tests.sh'
+            }
+        }
+        
+        stage('Build') {
+            parallel {
+                stage('Database Backup Image') {
+                    steps {
+                        sh 'docker build -t k8s-dr-framework:database-backup docker/database-backup/'
+                    }
+                }
+                stage('Config Backup Image') {
+                    steps {
+                        sh 'docker build -t k8s-dr-framework:config-backup docker/config-backup/'
+                    }
+                }
+                stage('Volume Backup Image') {
+                    steps {
+                        sh 'docker build -t k8s-dr-framework:volume-backup docker/volume-backup/'
+                    }
+                }
+            }
+        }
+    }
+    
+    post {
+        always {
+            cleanWs()
+        }
+    }
+}

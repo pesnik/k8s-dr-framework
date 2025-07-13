@@ -1,0 +1,44 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v2
+    
+    - name: Login to GitHub Container Registry
+      uses: docker/login-action@v2
+      with:
+        registry: ghcr.io
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+    
+    - name: Build and push Docker images
+      run: |
+        docker build -t ghcr.io/pesnik/k8s-dr-framework:${{ github.ref_name }} docker/database-backup/
+        docker build -t ghcr.io/pesnik/k8s-dr-framework-config:${{ github.ref_name }} docker/config-backup/
+        docker build -t ghcr.io/pesnik/k8s-dr-framework-volume:${{ github.ref_name }} docker/volume-backup/
+        
+        docker push ghcr.io/pesnik/k8s-dr-framework:${{ github.ref_name }}
+        docker push ghcr.io/pesnik/k8s-dr-framework-config:${{ github.ref_name }}
+        docker push ghcr.io/pesnik/k8s-dr-framework-volume:${{ github.ref_name }}
+    
+    - name: Package Helm charts
+      run: |
+        helm package charts/dr-core
+        helm package charts/backup-monitoring
+    
+    - name: Create GitHub Release
+      uses: softprops/action-gh-release@v1
+      with:
+        files: |
+          *.tgz
+        generate_release_notes: true

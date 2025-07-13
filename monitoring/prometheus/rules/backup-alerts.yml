@@ -1,0 +1,38 @@
+groups:
+- name: backup-alerts
+  rules:
+  - alert: BackupJobFailed
+    expr: increase(backup_job_success[1h]) == 0
+    for: 5m
+    labels:
+      severity: critical
+    annotations:
+      summary: "Backup job {{ $labels.job }} failed"
+      description: "Backup job {{ $labels.job }} has failed for database {{ $labels.database }}"
+
+  - alert: BackupJobLongRunning
+    expr: backup_job_duration_seconds > 3600
+    for: 5m
+    labels:
+      severity: warning
+    annotations:
+      summary: "Backup job {{ $labels.job }} is running for too long"
+      description: "Backup job {{ $labels.job }} has been running for more than 1 hour"
+
+  - alert: BackupStorageHigh
+    expr: backup_storage_usage_bytes / backup_storage_capacity_bytes > 0.8
+    for: 5m
+    labels:
+      severity: warning
+    annotations:
+      summary: "Backup storage usage is high"
+      description: "Backup storage usage is {{ $value | humanizePercentage }} of capacity"
+
+  - alert: BackupRetentionViolation
+    expr: backup_retention_days < 7
+    for: 5m
+    labels:
+      severity: critical
+    annotations:
+      summary: "Backup retention period is too short"
+      description: "Backup retention for {{ $labels.database }} is only {{ $value }} days"

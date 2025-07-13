@@ -1,0 +1,37 @@
+{{- if .Values.configBackups.enabled }}
+{{- range .Values.configBackups.namespaces }}
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: config-backup-{{ .name }}
+  namespace: {{ $.Values.global.namespace }}
+  labels:
+    {{- include "dr-core.labels" $ | nindent 4 }}
+    app.kubernetes.io/component: config-backup
+spec:
+  schedule: {{ .schedule | default $.Values.global.schedule | quote }}
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          serviceAccountName: {{ include "dr-core.serviceAccountName" $ }}
+          containers:
+          - name: config-backup
+            image: "{{ $.Values.global.image.repository }}/config-backup:{{ $.Values.global.image.tag }}"
+            imagePullPolicy: {{ $.Values.global.image.pullPolicy }}
+            env:
+            - name: NAMESPACE
+              value: {{ .name | quote }}
+            - name: RESOURCES
+              value: {{ join "," .resources | quote }}
+            - name: STORAGE_PROVIDER
+              value: {{ $.Values.storage.provider | quote }}
+            - name: RETENTION_DAYS
+              value: {{ $.Values.global.retention.days | quote }}
+            envFrom:
+            - secretRef:
+                name: {{ $.Values.storage.credentialsSecret }}
+          restartPolicy: OnFailure
+{{- end }}
+{{- end }}

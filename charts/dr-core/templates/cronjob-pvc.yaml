@@ -1,0 +1,37 @@
+{{- if .Values.pvBackups.enabled }}
+{{- range .Values.pvBackups.snapshots }}
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: pvc-backup-{{ .name }}
+  namespace: {{ $.Values.global.namespace }}
+  labels:
+    {{- include "dr-core.labels" $ | nindent 4 }}
+    app.kubernetes.io/component: pvc-backup
+spec:
+  schedule: {{ .schedule | default $.Values.global.schedule | quote }}
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          serviceAccountName: {{ include "dr-core.serviceAccountName" $ }}
+          containers:
+          - name: pvc-backup
+            image: "{{ $.Values.global.image.repository }}/volume-backup:{{ $.Values.global.image.tag }}"
+            imagePullPolicy: {{ $.Values.global.image.pullPolicy }}
+            env:
+            - name: PVC_NAME
+              value: {{ .pvcName | quote }}
+            - name: PVC_NAMESPACE
+              value: {{ .namespace | quote }}
+            - name: STORAGE_PROVIDER
+              value: {{ $.Values.storage.provider | quote }}
+            - name: RETENTION_DAYS
+              value: {{ $.Values.global.retention.days | quote }}
+            envFrom:
+            - secretRef:
+                name: {{ $.Values.storage.credentialsSecret }}
+          restartPolicy: OnFailure
+{{- end }}
+{{- end }}

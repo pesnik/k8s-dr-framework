@@ -1,0 +1,17 @@
+apiVersion: v2
+name: backup-monitoring
+description: Monitoring and alerting for backup operations
+type: application
+version: 1.0.0
+appVersion: "1.0.0"
+home: https://github.com/pesnik/k8s-dr-framework
+sources:
+  - https://github.com/pesnik/k8s-dr-framework
+maintainers:
+  - name: pesnik
+    email: pesnik@example.com
+keywords:
+  - monitoring
+  - backup
+  - prometheus
+  - grafana

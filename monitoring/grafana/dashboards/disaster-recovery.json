@@ -1,0 +1,58 @@
+{
+  "dashboard": {
+    "id": null,
+    "title": "Disaster Recovery",
+    "tags": ["disaster-recovery", "rto", "rpo"],
+    "timezone": "browser",
+    "panels": [
+      {
+        "id": 1,
+        "title": "Recovery Time Objective (RTO)",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "avg(dr_rto_seconds)",
+            "legendFormat": "RTO"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "s"
+          }
+        }
+      },
+      {
+        "id": 2,
+        "title": "Recovery Point Objective (RPO)",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "avg(dr_rpo_seconds)",
+            "legendFormat": "RPO"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "s"
+          }
+        }
+      },
+      {
+        "id": 3,
+        "title": "DR Test Success Rate",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "dr_test_success",
+            "legendFormat": "{{ type }}"
+          }
+        ]
+      }
+    ],
+    "time": {
+      "from": "now-7d",
+      "to": "now"
+    },
+    "refresh": "1h"
+  }
+}

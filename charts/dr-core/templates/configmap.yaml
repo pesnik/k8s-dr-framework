@@ -1,0 +1,180 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "dr-core.fullname" . }}-scripts
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    {{- include "dr-core.labels" . | nindent 4 }}
+data:
+  backup-common.sh: |
+    #!/bin/bash
+    set -euo pipefail
+    
+    # Common backup functions
+    log() {
+      echo "[$(date +'%Y-%m-%d %H:%M:%S')] $*" >&2
+    }
+    
+    error() {
+      log "ERROR: $*"
+      exit 1
+    }
+    
+    upload_to_storage() {
+      local file="$1"
+      local destination="$2"
+      
+      case "${STORAGE_PROVIDER}" in
+        "huawei-obs")
+          obsutil cp "$file" "obs://${OBS_BUCKET}/${destination}" || error "Failed to upload to OBS"
+          ;;
+        "aws-s3")
+          aws s3 cp "$file" "s3://${S3_BUCKET}/${destination}" || error "Failed to upload to S3"
+          ;;
+        "minio")
+          mc cp "$file" "minio/${MINIO_BUCKET}/${destination}" || error "Failed to upload to MinIO"
+          ;;
+        *)
+          error "Unsupported storage provider: ${STORAGE_PROVIDER}"
+          ;;
+      esac
+    }
+    
+    send_notification() {
+      local status="$1"
+      local message="$2"
+      
+      if [[ "${NOTIFICATION_ENABLED}" == "true" ]]; then
+        /scripts/utils/notify.sh "$status" "$message"
+      fi
+    }
+    
+    cleanup_old_backups() {
+      local retention_days="${BACKUP_RETENTION_DAYS:-30}"
+      log "Cleaning up backups older than ${retention_days} days"
+      
+      # Implementation depends on storage provider
+      case "${STORAGE_PROVIDER}" in
+        "huawei-obs")
+          # OBS cleanup logic
+          ;;
+        "aws-s3")
+          # S3 cleanup logic
+          ;;
+        "minio")
+          # MinIO cleanup logic
+          ;;
+      esac
+    }
+
+  postgres-backup.sh: |
+    #!/bin/bash
+    set -euo pipefail
+    source /scripts/backup-common.sh
+    
+    main() {
+      log "Starting PostgreSQL backup for ${DB_DATABASES}"
+      
+      # Set PostgreSQL environment variables
+      export PGHOST="${DB_HOST}"
+      export PGPORT="${DB_PORT}"
+      export PGUSER="${username}"
+      export PGPASSWORD="${password}"
+      
+      local timestamp=$(date +%Y%m%d_%H%M%S)
+      local backup_dir="/backup/${timestamp}"
+      mkdir -p "${backup_dir}"
+      
+      # Backup each database
+      IFS=',' read -ra DATABASES <<< "${DB_DATABASES}"
+      for db in "${DATABASES[@]}"; do
+        log "Backing up database: ${db}"
+        local backup_file="${backup_dir}/${db}_${timestamp}.sql"
+        
+        pg_dump "${db}" > "${backup_file}" || error "Failed to backup database ${db}"
+        
+        # Compress backup
+        gzip "${backup_file}"
+        backup_file="${backup_file}.gz"
+        
+        # Upload to storage
+        local storage_path="postgresql/${DB_HOST}/${db}/${timestamp}/$(basename ${backup_file})"
+        upload_to_storage "${backup_file}" "${storage_path}"
+        
+        log "Successfully backed up database ${db} to ${storage_path}"
+      done
+      
+      # Cleanup old backups
+      cleanup_old_backups
+      
+      send_notification "success" "PostgreSQL backup completed successfully for ${DB_DATABASES}"
+      log "PostgreSQL backup completed successfully"
+    }
+    
+    main "$@"
+
+  mysql-backup.sh: |
+    #!/bin/bash
+    set -euo pipefail
+    source /scripts/backup-common.sh
+    
+    main() {
+      log "Starting MySQL backup for ${DB_DATABASES}"
+      
+      local timestamp=$(date +%Y%m%d_%H%M%S)
+      local backup_dir="/backup/${timestamp}"
+      mkdir -p "${backup_dir}"
+      
+      # Backup each database
+      IFS=',' read -ra DATABASES <<< "${DB_DATABASES}"
+      for db in "${DATABASES[@]}"; do
+        log "Backing up database: ${db}"
+        local backup_file="${backup_dir}/${db}_${timestamp}.sql"
+        
+        mysqldump -h "${DB_HOST}" -P "${DB_PORT}" -u "${username}" -p"${password}" \
+          --single-transaction --routines --triggers "${db}" > "${backup_file}" || \
+          error "Failed to backup database ${db}"
+        
+        # Compress backup
+        gzip "${backup_file}"
+        backup_file="${backup_file}.gz"
+        
+        # Upload to storage
+        local storage_path="mysql/${DB_HOST}/${db}/${timestamp}/$(basename ${backup_file})"
+        upload_to_storage "${backup_file}" "${storage_path}"
+        
+        log "Successfully backed up database ${db} to ${storage_path}"
+      done
+      
+      # Cleanup old backups
+      cleanup_old_backups
+      
+      send_notification "success" "MySQL backup completed successfully for ${DB_DATABASES}"
+      log "MySQL backup completed successfully"
+    }
+    
+    main "$@"
+
+  notify.sh: |
+    #!/bin/bash
+    set -euo pipefail
+    
+    STATUS="$1"
+    MESSAGE="$2"
+    
+    # Send Slack notification
+    if [[ -n "${SLACK_WEBHOOK_URL:-}" ]]; then
+      curl -X POST -H 'Content-type: application/json' \
+        --data "{\"text\":\"[${STATUS}] ${MESSAGE}\"}" \
+        "${SLACK_WEBHOOK_URL}"
+    fi
+    
+    # Send email notification
+    if [[ -n "${SMTP_HOST:-}" ]]; then
+      echo "${MESSAGE}" | mail -s "[Backup ${STATUS}] Kubernetes DR Framework" \
+        -S smtp="${SMTP_HOST}:${SMTP_PORT}" \
+        -S smtp-auth=login \
+        -S smtp-auth-user="${SMTP_USERNAME}" \
+        -S smtp-auth-password="${SMTP_PASSWORD}" \
+        "${EMAIL_RECIPIENTS}"
+    fi

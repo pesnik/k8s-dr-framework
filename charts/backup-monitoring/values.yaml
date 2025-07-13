@@ -1,0 +1,33 @@
+# Default values for backup-monitoring
+prometheus:
+  enabled: true
+  rules:
+    backup:
+      enabled: true
+    storage:
+      enabled: true
+      
+grafana:
+  enabled: true
+  dashboards:
+    backupOverview:
+      enabled: true
+    disasterRecovery:
+      enabled: true
+      
+alertmanager:
+  enabled: true
+  config:
+    global:
+      smtp_smarthost: 'localhost:587'
+      smtp_from: 'alerts@example.com'
+    route:
+      group_by: ['alertname']
+      group_wait: 10s
+      group_interval: 10s
+      repeat_interval: 1h
+      receiver: 'web.hook'
+    receivers:
+      - name: 'web.hook'
+        webhook_configs:
+          - url: 'http://127.0.0.1:5001/'

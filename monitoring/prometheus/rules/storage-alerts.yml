@@ -1,0 +1,20 @@
+groups:
+- name: storage-alerts
+  rules:
+  - alert: StorageProviderDown
+    expr: up{job="backup-storage"} == 0
+    for: 5m
+    labels:
+      severity: critical
+    annotations:
+      summary: "Storage provider {{ $labels.provider }} is down"
+      description: "Storage provider {{ $labels.provider }} has been down for more than 5 minutes"
+
+  - alert: StorageCostAnomaly
+    expr: increase(backup_storage_cost_usd[24h]) > 100
+    for: 5m
+    labels:
+      severity: warning
+    annotations:
+      summary: "Storage cost anomaly detected"
+      description: "Storage cost increased by ${{ $value }} in the last 24 hours"

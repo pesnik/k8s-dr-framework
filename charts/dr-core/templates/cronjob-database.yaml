@@ -1,0 +1,80 @@
+{{- if .Values.databaseBackups.enabled }}
+{{- range $dbType, $config := .Values.databaseBackups }}
+{{- if and (ne $dbType "enabled") $config.instances }}
+{{- range $instance := $config.instances }}
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ $dbType }}-backup-{{ $instance.name }}
+  namespace: {{ $.Values.global.namespace }}
+  labels:
+    {{- include "dr-core.labels" $ | nindent 4 }}
+    app.kubernetes.io/component: database-backup
+    backup.k8s.io/type: {{ $dbType }}
+    backup.k8s.io/instance: {{ $instance.name }}
+spec:
+  schedule: {{ $instance.schedule | default $.Values.global.schedule | quote }}
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: {{ $.Values.global.jobHistoryLimit.successful }}
+  failedJobsHistoryLimit: {{ $.Values.global.jobHistoryLimit.failed }}
+  jobTemplate:
+    spec:
+      template:
+        metadata:
+          labels:
+            {{- include "dr-core.selectorLabels" $ | nindent 12 }}
+            app.kubernetes.io/component: database-backup
+            backup.k8s.io/type: {{ $dbType }}
+            backup.k8s.io/instance: {{ $instance.name }}
+        spec:
+          serviceAccountName: {{ include "dr-core.serviceAccountName" $ }}
+          restartPolicy: OnFailure
+          containers:
+          - name: backup
+            image: {{ include "dr-core.backupImage" $ }}
+            imagePullPolicy: {{ $.Values.global.image.pullPolicy }}
+            command: ["/scripts/databases/{{ $dbType }}/backup.sh"]
+            env:
+            - name: DB_TYPE
+              value: {{ $dbType | quote }}
+            - name: DB_HOST
+              value: {{ $instance.host | quote }}
+            - name: DB_PORT
+              value: {{ $instance.port | quote }}
+            - name: DB_DATABASES
+              value: {{ $instance.databases | join "," | quote }}
+            - name: BACKUP_RETENTION_DAYS
+              value: {{ $instance.retention.days | default $.Values.global.retention.days | quote }}
+            - name: STORAGE_PROVIDER
+              value: {{ $.Values.storage.provider | quote }}
+            - name: NOTIFICATION_ENABLED
+              value: {{ $.Values.notifications.enabled | quote }}
+            envFrom:
+            - secretRef:
+                name: {{ $instance.secretName }}
+            - secretRef:
+                name: {{ include "dr-core.storageSecretName" $ }}
+            {{- if $.Values.notifications.enabled }}
+            - secretRef:
+                name: notification-config
+            {{- end }}
+            resources:
+              {{- toYaml ($instance.resources | default $.Values.resources.backup) | nindent 14 }}
+            volumeMounts:
+            - name: backup-scripts
+              mountPath: /scripts
+              readOnly: true
+            - name: backup-storage
+              mountPath: /backup
+          volumes:
+          - name: backup-scripts
+            configMap:
+              name: {{ include "dr-core.fullname" $ }}-scripts
+              defaultMode: 0755
+          - name: backup-storage
+            emptyDir: {}
+{{- end }}
+{{- end }}
+{{- end }}
+{{- end }}

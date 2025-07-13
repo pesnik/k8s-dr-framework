@@ -1,0 +1,39 @@
+{{- if .Values.monitoring.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "dr-core.fullname" . }}-alertmanager
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    {{- include "dr-core.labels" . | nindent 4 }}
+data:
+  alertmanager.yml: |
+    global:
+      smtp_smarthost: '{{ .Values.notifications.smtp.host }}:{{ .Values.notifications.smtp.port }}'
+      smtp_from: '{{ .Values.notifications.smtp.from }}'
+    
+    route:
+      group_by: ['alertname']
+      group_wait: 10s
+      group_interval: 10s
+      repeat_interval: 1h
+      receiver: 'default'
+      routes:
+      - match:
+          alertname: BackupJobFailed
+        receiver: 'backup-alerts'
+    
+    receivers:
+    - name: 'default'
+      email_configs:
+      - to: '{{ .Values.notifications.email.to }}'
+        subject: 'DR Framework Alert'
+        body: 'Alert: {{ .CommonAnnotations.summary }}'
+    
+    - name: 'backup-alerts'
+      slack_configs:
+      - api_url: '{{ .Values.notifications.slack.webhook }}'
+        channel: '#backup-alerts'
+        title: 'Backup Job Failed'
+        text: 'Backup job {{ .GroupLabels.job }} failed in namespace {{ .GroupLabels.namespace }}'
+{{- end }}

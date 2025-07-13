@@ -1,0 +1,55 @@
+# Default values for dr-core
+global:
+  namespace: "backup-ops"
+  image:
+    repository: "ghcr.io/pesnik/k8s-dr-framework"
+    tag: "latest"
+    pullPolicy: "IfNotPresent"
+  schedule: "0 2 * * *"
+  retention:
+    days: 30
+  
+storage:
+  provider: "huawei-obs"
+  credentialsSecret: "cloud-storage-credentials"
+  encryption:
+    enabled: true
+    kmsKeyId: ""
+  
+databaseBackups:
+  enabled: true
+  postgresql:
+    instances: []
+  mysql:
+    instances: []
+  mongodb:
+    instances: []
+
+configBackups:
+  enabled: false
+  namespaces: []
+  
+pvBackups:
+  enabled: false
+  snapshots: []
+  
+monitoring:
+  enabled: true
+  prometheus:
+    serviceMonitor:
+      enabled: true
+      interval: "30s"
+  grafana:
+    dashboards:
+      enabled: true
+      
+notifications:
+  enabled: false
+  channels: []
+
+rbac:
+  create: true
+  
+serviceAccount:
+  create: true
+  name: "backup-operator"

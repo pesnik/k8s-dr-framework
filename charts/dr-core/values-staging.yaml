@@ -1,0 +1,29 @@
+# Staging environment values
+global:
+  image:
+    tag: "staging"
+  schedule: "0 3 * * *"
+  retention:
+    days: 7
+
+storage:
+  provider: "minio"
+  credentialsSecret: "staging-storage-credentials"
+  
+databaseBackups:
+  postgresql:
+    instances:
+      - name: "staging-app"
+        host: "postgres-staging"
+        port: 5432
+        secretName: "postgres-staging-secret"
+        databases: ["appdb"]
+        
+monitoring:
+  enabled: true
+  
+notifications:
+  enabled: true
+  channels:
+    - type: "slack"
+      webhook: "https://hooks.slack.com/services/staging/..."

@@ -1,0 +1,38 @@
+# Basic setup for k8s-dr-framework
+global:
+  namespace: backup-ops
+  schedule: "0 2 * * *"  # Daily at 2 AM
+
+storage:
+  provider: aws-s3
+  bucket: my-backup-bucket
+  region: us-west-2
+  credentialsSecret: aws-credentials
+
+databaseBackups:
+  enabled: true
+  postgresql:
+    instances:
+      - name: app-db
+        host: postgres-service
+        port: 5432
+        secretName: postgres-credentials
+        databases: ["app"]
+
+configBackups:
+  enabled: true
+  namespaces:
+    - name: default
+      resources: ["ConfigMap", "Secret"]
+
+monitoring:
+  enabled: true
+  prometheus:
+    serviceMonitor:
+      enabled: true
+
+notifications:
+  enabled: true
+  channels:
+    - type: slack
+      webhook: "https://hooks.slack.com/services/YOUR/SLACK/WEBHOOK"

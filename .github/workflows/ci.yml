@@ -1,0 +1,52 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up Helm
+      uses: azure/setup-helm@v3
+      with:
+        version: '3.10.0'
+    
+    - name: Lint Helm charts
+      run: |
+        helm lint charts/dr-core
+        helm lint charts/backup-monitoring
+    
+    - name: Run unit tests
+      run: |
+        chmod +x tests/unit/run-tests.sh
+        ./tests/unit/run-tests.sh
+    
+    - name: Build Docker images
+      run: |
+        docker build -t dr-framework:test docker/database-backup/
+        docker build -t dr-framework-config:test docker/config-backup/
+        docker build -t dr-framework-volume:test docker/volume-backup/
+
+  security-scan:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Run Trivy vulnerability scanner
+      uses: aquasecurity/trivy-action@master
+      with:
+        scan-type: 'fs'
+        scan-ref: '.'
+        format: 'sarif'
+        output: 'trivy-results.sarif'
+    
+    - name: Upload Trivy scan results
+      uses: github/codeql-action/upload-sarif@v2
+      with:
+        sarif_file: 'trivy-results.sarif'

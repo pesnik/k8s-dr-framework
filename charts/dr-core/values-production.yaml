@@ -1,0 +1,66 @@
+# Production environment values
+global:
+  image:
+    tag: "v1.0.0"
+  schedule: "0 2 * * *"
+  retention:
+    days: 30
+
+storage:
+  provider: "huawei-obs"
+  credentialsSecret: "production-storage-credentials"
+  encryption:
+    enabled: true
+    kmsKeyId: "production-kms-key"
+  
+databaseBackups:
+  postgresql:
+    instances:
+      - name: "airflow"
+        host: "airflow-postgres-service"
+        port: 5432
+        secretName: "airflow-db-credentials"
+        databases: ["airflow"]
+      - name: "superset"
+        host: "superset-postgres-service"
+        port: 5432
+        secretName: "superset-db-credentials"
+        databases: ["superset"]
+        
+  mysql:
+    instances:
+      - name: "production-app"
+        host: "mysql-primary-service"
+        port: 3306
+        secretName: "mysql-prod-credentials"
+        databases: ["production"]
+
+configBackups:
+  enabled: true
+  namespaces:
+    - name: "default"
+      resources: ["ConfigMap", "Secret"]
+    - name: "critical-apps"
+      resources: ["ConfigMap", "Secret", "Deployment", "Service"]
+  
+pvBackups:
+  enabled: true
+  snapshots:
+    - name: "airflow-pvc-snapshot"
+      pvcName: "airflow-data-pvc"
+      namespace: "airflow"
+      schedule: "0 0 * * *"
+      
+monitoring:
+  enabled: true
+  
+notifications:
+  enabled: true
+  channels:
+    - type: "slack"
+      webhook: "https://hooks.slack.com/services/production/..."
+    - type: "email"
+      smtp:
+        host: "smtp.company.com"
+        port: 587
+        username: "alerts@company.com"

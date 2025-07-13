@@ -1,0 +1,33 @@
+stages:
+  - test
+  - build
+  - deploy
+
+variables:
+  DOCKER_DRIVER: overlay2
+  DOCKER_TLS_CERTDIR: ""
+
+helm-lint:
+  stage: test
+  image: alpine/helm:3.12.0
+  script:
+    - helm lint charts/dr-core
+    - helm lint charts/backup-monitoring
+
+unit-tests:
+  stage: test
+  image: ubuntu:20.04
+  script:
+    - apt-get update && apt-get install -y bash
+    - chmod +x tests/unit/run-tests.sh
+    - ./tests/unit/run-tests.sh
+
+build-images:
+  stage: build
+  image: docker:latest
+  services:
+    - docker:dind
+  script:
+    - docker build -t $CI_REGISTRY_IMAGE:database-backup docker/database-backup/
+    - docker build -t $CI_REGISTRY_IMAGE:config-backup docker/config-backup/
+    - docker build -t $CI_REGISTRY_IMAGE:volume-backup docker/volume-backup/

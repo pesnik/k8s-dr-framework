@@ -1,0 +1,27 @@
+{{- if .Values.grafana.dashboards.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: backup-overview-dashboard
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    grafana_dashboard: "1"
+data:
+  backup-overview.json: |
+    {
+      "dashboard": {
+        "title": "Backup Overview",
+        "panels": [
+          {
+            "title": "Backup Success Rate",
+            "type": "stat",
+            "targets": [
+              {
+                "expr": "rate(backup_job_success[5m])"
+              }
+            ]
+          }
+        ]
+      }
+    }
+{{- end }}
